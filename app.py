@@ -1,8 +1,10 @@
 import os
 import pandas as pd
-from flask import Flask, request, make_response
+import requests
+from flask import Flask, request, make_response, jsonify
 from slack_bolt import App
 from slack_bolt.adapter.flask import SlackRequestHandler
+from slack_sdk import WebClient
 
 # Load the CSV once at startup
 def load_tests(csv_path: str) -> pd.DataFrame:
@@ -93,6 +95,69 @@ def slack_events():
 @flask_app.route("/", methods=["GET"])
 def index():
     return make_response("Lab Test Selector Bot is running!", 200)
+
+@flask_app.route("/move-audio", methods=["POST"])
+def move_audio():
+    """
+    Download audio file from Slack and upload to target channel.
+    Expects JSON: {file_url, file_name, target_channel, title (optional)}
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"status": "error", "message": "No JSON data provided"}), 400
+
+        file_url = data.get("file_url")
+        file_name = data.get("file_name")
+        target_channel = data.get("target_channel")
+        title = data.get("title", "")
+
+        if not all([file_url, file_name, target_channel]):
+            return jsonify({
+                "status": "error",
+                "message": "Missing required fields: file_url, file_name, target_channel"
+            }), 400
+
+        # Get Slack bot token from environment
+        slack_token = os.environ.get("SLACK_BOT_TOKEN")
+        if not slack_token:
+            return jsonify({
+                "status": "error",
+                "message": "SLACK_BOT_TOKEN not configured"
+            }), 500
+
+        # Download the file from Slack
+        headers = {"Authorization": f"Bearer {slack_token}"}
+        response = requests.get(file_url, headers=headers, timeout=30)
+        response.raise_for_status()
+
+        # Upload file to target channel using Slack SDK
+        client = WebClient(token=slack_token)
+        upload_response = client.files_upload_v2(
+            channels=target_channel,
+            file=response.content,
+            filename=file_name,
+            title=title if title else file_name,
+        )
+
+        if upload_response["ok"]:
+            return jsonify({"status": "ok"}), 200
+        else:
+            return jsonify({
+                "status": "error",
+                "message": f"Slack upload failed: {upload_response.get('error', 'Unknown error')}"
+            }), 500
+
+    except requests.RequestException as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to download file: {str(e)}"
+        }), 500
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Unexpected error: {str(e)}"
+        }), 500
 
 if __name__ == "__main__":
     # Bind to port provided by Heroku
