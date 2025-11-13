@@ -4,6 +4,9 @@ from flask import Flask, request, make_response
 from slack_bolt import App
 from slack_bolt.adapter.flask import SlackRequestHandler
 
+# Import Veterinary PIMS Blueprint
+from veterinary_pims import pims_bp
+
 # Load the CSV once at startup
 def load_tests(csv_path: str) -> pd.DataFrame:
     df = pd.read_csv(csv_path)
@@ -85,6 +88,9 @@ def handle_choose_test(ack, respond, command):
 flask_app = Flask(__name__)
 handler = SlackRequestHandler(bolt_app)
 
+# Register Veterinary PIMS Blueprint
+flask_app.register_blueprint(pims_bp)
+
 # Slack slash commands and events will POST to /slack/events
 @flask_app.route("/slack/events", methods=["POST"])
 def slack_events():
@@ -92,7 +98,12 @@ def slack_events():
 
 @flask_app.route("/", methods=["GET"])
 def index():
-    return make_response("Lab Test Selector Bot is running!", 200)
+    return make_response(
+        "<h1>Lab Test Selector Bot is running!</h1>"
+        "<p><a href='/pims/'>Access Veterinary PIMS →</a></p>"
+        "<p><a href='/pims/ai/symptom-analyzer'>AI Symptom Analyzer →</a></p>",
+        200
+    )
 
 if __name__ == "__main__":
     # Bind to port provided by Heroku

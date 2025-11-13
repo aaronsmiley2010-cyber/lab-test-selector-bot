@@ -1,0 +1,162 @@
+{% extends "pims/base.html" %}
+
+{% block title %}AI Symptom Analyzer - Veterinary PIMS{% endblock %}
+
+{% block content %}
+<div class="ai-section">
+    <h2>AI-Powered Symptom Analyzer</h2>
+    <p>Use artificial intelligence to analyze symptoms, assess urgency, and recommend diagnostic tests. This tool provides intelligent triage support for veterinary professionals.</p>
+</div>
+
+<div class="card">
+    <h2>Enter Symptoms</h2>
+
+    <form id="symptomForm">
+        <div class="form-group">
+            <label for="species">Species</label>
+            <select id="species" name="species" required>
+                <option value="dog">Dog</option>
+                <option value="cat">Cat</option>
+                <option value="bird">Bird</option>
+                <option value="rabbit">Rabbit</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="symptoms">Symptoms (one per line)</label>
+            <textarea id="symptoms" name="symptoms" rows="6" placeholder="Enter symptoms, one per line. For example:&#10;Vomiting&#10;Lethargy&#10;Loss of appetite" required></textarea>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+            <button type="button" onclick="analyzeSymptoms()" class="btn btn-ai">Analyze with AI</button>
+            <button type="button" onclick="clearForm()" class="btn btn-secondary">Clear</button>
+        </div>
+    </form>
+</div>
+
+<div id="results" style="display: none;">
+    <div class="card" id="urgencyCard">
+        <h2>Analysis Results</h2>
+        <div id="urgencyResult"></div>
+    </div>
+
+    <div class="card" id="diagnosesCard">
+        <h2>Potential Diagnoses</h2>
+        <div id="diagnosesResult"></div>
+    </div>
+
+    <div class="card" id="testsCard">
+        <h2>Recommended Diagnostic Tests</h2>
+        <div id="testsResult"></div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>About the AI Symptom Analyzer</h3>
+    <p>This AI-powered tool uses advanced pattern recognition to:</p>
+    <ul style="margin-top: 10px; padding-left: 20px;">
+        <li>Assess the urgency level of symptoms</li>
+        <li>Identify potential diagnoses with probability scores</li>
+        <li>Recommend appropriate diagnostic tests</li>
+        <li>Support clinical decision-making</li>
+    </ul>
+    <p style="margin-top: 10px;"><strong>Note:</strong> This tool is designed to assist veterinary professionals and should not replace clinical judgment or examination.</p>
+</div>
+
+<script>
+    function analyzeSymptoms() {
+        const species = document.getElementById('species').value;
+        const symptomsText = document.getElementById('symptoms').value;
+        const symptoms = symptomsText.split('\n').filter(s => s.trim());
+
+        if (symptoms.length === 0) {
+            alert('Please enter at least one symptom');
+            return;
+        }
+
+        // Show loading state
+        document.getElementById('results').style.display = 'block';
+        document.getElementById('urgencyResult').innerHTML = '<p>Analyzing symptoms...</p>';
+
+        // Call AI analysis API
+        fetch('{{ url_for("pims.analyze_symptoms") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                species: species,
+                symptoms: symptoms
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            displayResults(data);
+        })
+        .catch(error => {
+            document.getElementById('urgencyResult').innerHTML = '<p style="color: red;">Error analyzing symptoms. Please try again.</p>';
+        });
+    }
+
+    function displayResults(data) {
+        // Display urgency
+        const urgencyColors = {
+            'emergency': '#dc3545',
+            'urgent': '#ffc107',
+            'routine': '#28a745'
+        };
+        const urgencyColor = urgencyColors[data.urgency] || '#6c757d';
+
+        let urgencyHTML = `
+            <div style="padding: 20px; background: ${urgencyColor}; color: white; border-radius: 8px; margin-bottom: 20px;">
+                <h3 style="margin: 0;">Urgency Level: ${data.urgency.toUpperCase()}</h3>
+                <p style="margin: 10px 0 0 0;">Confidence: ${(data.confidence * 100).toFixed(0)}%</p>
+            </div>
+        `;
+
+        if (data.matching_patterns && data.matching_patterns.length > 0) {
+            urgencyHTML += `<p><strong>Matching Patterns:</strong> ${data.matching_patterns.join(', ')}</p>`;
+        }
+
+        document.getElementById('urgencyResult').innerHTML = urgencyHTML;
+
+        // Display diagnoses
+        if (data.potential_diagnoses && data.potential_diagnoses.length > 0) {
+            let diagnosesHTML = '<div style="display: grid; gap: 15px;">';
+            data.potential_diagnoses.forEach(diagnosis => {
+                diagnosesHTML += `
+                    <div style="padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #667eea;">
+                        <h4 style="margin: 0 0 10px 0;">${diagnosis.condition}</h4>
+                        <p><strong>Category:</strong> ${diagnosis.category}</p>
+                        <p><strong>Probability:</strong> ${(diagnosis.probability * 100).toFixed(0)}%</p>
+                        <div style="width: 100%; height: 8px; background: #e9ecef; border-radius: 4px; margin-top: 10px;">
+                            <div style="width: ${(diagnosis.probability * 100).toFixed(0)}%; height: 100%; background: #667eea; border-radius: 4px;"></div>
+                        </div>
+                    </div>
+                `;
+            });
+            diagnosesHTML += '</div>';
+            document.getElementById('diagnosesResult').innerHTML = diagnosesHTML;
+        } else {
+            document.getElementById('diagnosesCard').style.display = 'none';
+        }
+
+        // Display recommended tests
+        if (data.recommended_tests && data.recommended_tests.length > 0) {
+            let testsHTML = '<ul style="padding-left: 20px;">';
+            data.recommended_tests.forEach(test => {
+                testsHTML += `<li style="margin-bottom: 8px;">${test}</li>`;
+            });
+            testsHTML += '</ul>';
+            document.getElementById('testsResult').innerHTML = testsHTML;
+        } else {
+            document.getElementById('testsCard').style.display = 'none';
+        }
+    }
+
+    function clearForm() {
+        document.getElementById('symptomForm').reset();
+        document.getElementById('results').style.display = 'none';
+    }
+</script>
+{% endblock %}

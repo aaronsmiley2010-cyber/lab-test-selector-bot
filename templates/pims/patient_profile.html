@@ -1,0 +1,343 @@
+{% extends "pims/base.html" %}
+
+{% block title %}{{ patient.name }} - Patient Profile{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 20px;">
+    <a href="{{ url_for('pims.index') }}" class="btn btn-secondary">← Back to Dashboard</a>
+    <a href="{{ url_for('pims.edit_patient', patient_id=patient.patient_id) }}" class="btn btn-primary">Edit Patient</a>
+</div>
+
+<div class="card">
+    <h2>Patient Profile: {{ patient.name }}</h2>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 20px;">
+        <div>
+            <h3 style="color: #667eea; margin-bottom: 15px;">Basic Information</h3>
+            <p><strong>Patient ID:</strong> {{ patient.patient_id }}</p>
+            <p><strong>Species:</strong> {{ patient.species }}</p>
+            <p><strong>Breed:</strong> {{ patient.breed }}</p>
+            <p><strong>Gender:</strong> {{ patient.gender }}</p>
+            <p><strong>Date of Birth:</strong> {{ patient.date_of_birth }}</p>
+            <p><strong>Weight:</strong> {{ patient.weight }} lbs</p>
+            {% if patient.microchip_id %}
+            <p><strong>Microchip ID:</strong> {{ patient.microchip_id }}</p>
+            {% endif %}
+        </div>
+
+        <div>
+            <h3 style="color: #667eea; margin-bottom: 15px;">Owner Information</h3>
+            <p><strong>Owner:</strong> {{ patient.owner_name }}</p>
+            <p><strong>Contact:</strong> {{ patient.owner_contact }}</p>
+            <p><strong>Record Created:</strong> {{ patient.created_at[:10] }}</p>
+            <p><strong>Last Updated:</strong> {{ patient.updated_at[:10] }}</p>
+        </div>
+    </div>
+
+    {% if patient.allergies %}
+    <div class="alert alert-warning" style="margin-top: 20px;">
+        <strong>⚠ Allergies:</strong> {{ patient.allergies|join(', ') }}
+    </div>
+    {% endif %}
+
+    {% if patient.chronic_conditions %}
+    <div class="alert alert-info" style="margin-top: 20px;">
+        <strong>Chronic Conditions:</strong> {{ patient.chronic_conditions|join(', ') }}
+    </div>
+    {% endif %}
+</div>
+
+{% if patient.ai_risk_assessment %}
+<div class="ai-section">
+    <h3>AI Health Risk Assessment</h3>
+    <div style="margin-top: 15px;">
+        <p><strong>Overall Risk Level:</strong>
+            <span style="padding: 5px 15px; border-radius: 20px; background: {% if patient.ai_risk_assessment.risk_level == 'high' %}#dc3545{% elif patient.ai_risk_assessment.risk_level == 'medium' %}#ffc107{% else %}#28a745{% endif %}; color: white;">
+                {{ patient.ai_risk_assessment.risk_level|upper }}
+            </span>
+        </p>
+        <p><strong>Risk Score:</strong> {{ (patient.ai_risk_assessment.overall_risk_score * 100)|round }}%</p>
+
+        {% if patient.ai_risk_assessment.identified_risks %}
+        <h4 style="margin-top: 15px;">Identified Risks:</h4>
+        <ul>
+            {% for risk in patient.ai_risk_assessment.identified_risks %}
+            <li>
+                <strong>{{ risk.risk }}:</strong> {{ risk.description }}
+                (Probability: {{ (risk.probability * 100)|round }}%)
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+
+    <button onclick="updateRiskAssessment()" class="btn btn-ai" style="margin-top: 15px;">
+        Refresh AI Assessment
+    </button>
+</div>
+{% endif %}
+
+{% if patient.ai_preventive_care_recommendations %}
+<div class="card">
+    <h2>AI Preventive Care Recommendations</h2>
+    {% for rec in patient.ai_preventive_care_recommendations %}
+    <div class="alert alert-info" style="margin-top: 10px;">
+        <h4>{{ rec.category }}: {{ rec.recommendation }}</h4>
+        <p><strong>Priority:</strong> {{ rec.priority|upper }}</p>
+        <p><strong>Due Date:</strong> {{ rec.due_date[:10] }}</p>
+        <p><strong>Reasoning:</strong> {{ rec.reasoning }}</p>
+    </div>
+    {% endfor %}
+
+    <button onclick="generatePreventiveCare()" class="btn btn-ai" style="margin-top: 15px;">
+        Regenerate Recommendations
+    </button>
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>Medical History</h2>
+    {% if patient.medical_history %}
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Diagnosis</th>
+                <th>Treatment</th>
+                <th>Veterinarian</th>
+                <th>Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in patient.medical_history %}
+            <tr>
+                <td>{{ record.date }}</td>
+                <td>{{ record.diagnosis }}</td>
+                <td>{{ record.treatment }}</td>
+                <td>{{ record.veterinarian }}</td>
+                <td>{{ record.notes }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #6c757d; margin-top: 15px;">No medical history recorded yet.</p>
+    {% endif %}
+
+    <button onclick="showAddMedicalRecord()" class="btn btn-success" style="margin-top: 15px;">
+        + Add Medical Record
+    </button>
+
+    <div id="medicalRecordForm" style="display: none; margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+        <h3>Add Medical Record</h3>
+        <form method="POST" action="{{ url_for('pims.add_medical_record', patient_id=patient.patient_id) }}">
+            <div class="form-group">
+                <label>Date</label>
+                <input type="date" name="date" required>
+            </div>
+            <div class="form-group">
+                <label>Diagnosis</label>
+                <input type="text" name="diagnosis" required>
+            </div>
+            <div class="form-group">
+                <label>Treatment</label>
+                <input type="text" name="treatment" required>
+            </div>
+            <div class="form-group">
+                <label>Veterinarian</label>
+                <input type="text" name="veterinarian" required>
+            </div>
+            <div class="form-group">
+                <label>Notes</label>
+                <textarea name="notes" rows="3"></textarea>
+            </div>
+            <button type="submit" class="btn btn-success">Save Record</button>
+            <button type="button" onclick="hideAddMedicalRecord()" class="btn btn-secondary">Cancel</button>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Vaccinations</h2>
+    {% if patient.vaccinations %}
+    <table>
+        <thead>
+            <tr>
+                <th>Vaccine</th>
+                <th>Date Administered</th>
+                <th>Due Date</th>
+                <th>Veterinarian</th>
+                <th>Batch #</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for vax in patient.vaccinations %}
+            <tr>
+                <td>{{ vax.vaccine_name }}</td>
+                <td>{{ vax.date_administered }}</td>
+                <td>{{ vax.due_date }}</td>
+                <td>{{ vax.veterinarian }}</td>
+                <td>{{ vax.batch_number }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #6c757d; margin-top: 15px;">No vaccinations recorded yet.</p>
+    {% endif %}
+
+    <button onclick="showAddVaccination()" class="btn btn-success" style="margin-top: 15px;">
+        + Add Vaccination
+    </button>
+
+    <div id="vaccinationForm" style="display: none; margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+        <h3>Add Vaccination</h3>
+        <form method="POST" action="{{ url_for('pims.add_vaccination', patient_id=patient.patient_id) }}">
+            <div class="form-group">
+                <label>Vaccine Name</label>
+                <input type="text" name="vaccine_name" required>
+            </div>
+            <div class="form-group">
+                <label>Date Administered</label>
+                <input type="date" name="date_administered" required>
+            </div>
+            <div class="form-group">
+                <label>Due Date (Next Dose)</label>
+                <input type="date" name="due_date" required>
+            </div>
+            <div class="form-group">
+                <label>Veterinarian</label>
+                <input type="text" name="veterinarian" required>
+            </div>
+            <div class="form-group">
+                <label>Batch Number</label>
+                <input type="text" name="batch_number">
+            </div>
+            <button type="submit" class="btn btn-success">Save Vaccination</button>
+            <button type="button" onclick="hideAddVaccination()" class="btn btn-secondary">Cancel</button>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Current Medications</h2>
+    {% if patient.medications %}
+    <table>
+        <thead>
+            <tr>
+                <th>Medication</th>
+                <th>Dosage</th>
+                <th>Frequency</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Prescribing Vet</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for med in patient.medications %}
+            <tr>
+                <td>{{ med.medication_name }}</td>
+                <td>{{ med.dosage }}</td>
+                <td>{{ med.frequency }}</td>
+                <td>{{ med.start_date }}</td>
+                <td>{{ med.end_date or 'Ongoing' }}</td>
+                <td>{{ med.prescribing_vet }}</td>
+                <td>
+                    <span style="color: {% if med.active %}#28a745{% else %}#6c757d{% endif %};">
+                        {{ 'Active' if med.active else 'Completed' }}
+                    </span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #6c757d; margin-top: 15px;">No medications recorded yet.</p>
+    {% endif %}
+
+    <button onclick="showAddMedication()" class="btn btn-success" style="margin-top: 15px;">
+        + Add Medication
+    </button>
+
+    <div id="medicationForm" style="display: none; margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+        <h3>Add Medication</h3>
+        <form method="POST" action="{{ url_for('pims.add_medication', patient_id=patient.patient_id) }}">
+            <div class="form-group">
+                <label>Medication Name</label>
+                <input type="text" name="medication_name" required>
+            </div>
+            <div class="form-group">
+                <label>Dosage</label>
+                <input type="text" name="dosage" required placeholder="e.g., 10mg">
+            </div>
+            <div class="form-group">
+                <label>Frequency</label>
+                <input type="text" name="frequency" required placeholder="e.g., Twice daily">
+            </div>
+            <div class="form-group">
+                <label>Start Date</label>
+                <input type="date" name="start_date" required>
+            </div>
+            <div class="form-group">
+                <label>End Date (leave blank if ongoing)</label>
+                <input type="date" name="end_date">
+            </div>
+            <div class="form-group">
+                <label>Prescribing Veterinarian</label>
+                <input type="text" name="prescribing_vet" required>
+            </div>
+            <button type="submit" class="btn btn-success">Save Medication</button>
+            <button type="button" onclick="hideAddMedication()" class="btn btn-secondary">Cancel</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function showAddMedicalRecord() {
+        document.getElementById('medicalRecordForm').style.display = 'block';
+    }
+
+    function hideAddMedicalRecord() {
+        document.getElementById('medicalRecordForm').style.display = 'none';
+    }
+
+    function showAddVaccination() {
+        document.getElementById('vaccinationForm').style.display = 'block';
+    }
+
+    function hideAddVaccination() {
+        document.getElementById('vaccinationForm').style.display = 'none';
+    }
+
+    function showAddMedication() {
+        document.getElementById('medicationForm').style.display = 'block';
+    }
+
+    function hideAddMedication() {
+        document.getElementById('medicationForm').style.display = 'none';
+    }
+
+    function updateRiskAssessment() {
+        fetch('{{ url_for("pims.get_risk_assessment", patient_id=patient.patient_id) }}', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert('Risk assessment updated successfully!');
+            location.reload();
+        });
+    }
+
+    function generatePreventiveCare() {
+        fetch('{{ url_for("pims.generate_preventive_care", patient_id=patient.patient_id) }}', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert('Preventive care recommendations updated!');
+            location.reload();
+        });
+    }
+</script>
+{% endblock %}

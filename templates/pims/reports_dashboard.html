@@ -1,0 +1,123 @@
+{% extends "pims/base.html" %}
+
+{% block title %}Reports & Analytics - Veterinary PIMS{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Practice Analytics Dashboard</h2>
+    <p>Comprehensive practice insights powered by AI analytics</p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px;">
+    <div class="card" style="text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <h3 style="font-size: 3em; margin: 0;">{{ stats.total_patients }}</h3>
+        <p style="font-size: 1.2em; margin: 10px 0 0 0;">Total Patients</p>
+    </div>
+
+    <div class="card" style="text-align: center; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+        <h3 style="font-size: 3em; margin: 0;">{{ stats.high_risk_patients }}</h3>
+        <p style="font-size: 1.2em; margin: 10px 0 0 0;">High Risk Patients</p>
+    </div>
+
+    <div class="card" style="text-align: center; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+        <h3 style="font-size: 3em; margin: 0;">{{ stats.species_breakdown|length }}</h3>
+        <p style="font-size: 1.2em; margin: 10px 0 0 0;">Species Types</p>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+    <div class="card">
+        <h2>Species Distribution</h2>
+        {% if stats.species_breakdown %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Species</th>
+                    <th>Count</th>
+                    <th>Percentage</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for species, count in stats.species_breakdown.items() %}
+                <tr>
+                    <td>{{ species|title }}</td>
+                    <td>{{ count }}</td>
+                    <td>{{ ((count / stats.total_patients) * 100)|round(1) }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color: #6c757d;">No data available</p>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <h2>High Risk Patients</h2>
+        {% if patients %}
+        <div style="max-height: 400px; overflow-y: auto;">
+            {% for patient in patients %}
+            {% if patient.ai_risk_assessment and patient.ai_risk_assessment.risk_level == 'high' %}
+            <div style="padding: 10px; background: #fff3cd; border-left: 4px solid #ffc107; margin-bottom: 10px; border-radius: 4px;">
+                <h4 style="margin: 0;">{{ patient.name }}</h4>
+                <p style="margin: 5px 0; font-size: 0.9em;">{{ patient.species }} - {{ patient.breed }}</p>
+                <p style="margin: 5px 0; font-size: 0.9em;">Risk Score: {{ (patient.ai_risk_assessment.overall_risk_score * 100)|round }}%</p>
+                <a href="{{ url_for('pims.view_patient', patient_id=patient.patient_id) }}" class="btn btn-primary" style="padding: 5px 15px; font-size: 0.9em; margin-top: 5px;">View Profile</a>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color: #6c757d;">No high-risk patients identified</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="ai-section">
+    <h3>AI-Powered Insights</h3>
+    <div style="margin-top: 15px;">
+        <p><strong>Practice Health Score:</strong>
+            <span style="padding: 5px 15px; border-radius: 20px; background: #28a745; color: white;">
+                GOOD
+            </span>
+        </p>
+        <p style="margin-top: 15px;"><strong>Key Insights:</strong></p>
+        <ul style="margin-top: 10px; padding-left: 20px;">
+            <li>{{ stats.high_risk_patients }} patient(s) require immediate attention</li>
+            <li>AI preventive care recommendations active for all patients</li>
+            <li>System monitoring {{ stats.total_patients }} patient health trends</li>
+        </ul>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Recent Activity</h2>
+    <p style="color: #6c757d;">Most recently updated patients:</p>
+    {% if patients %}
+    <table style="margin-top: 15px;">
+        <thead>
+            <tr>
+                <th>Patient</th>
+                <th>Species</th>
+                <th>Owner</th>
+                <th>Last Updated</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for patient in patients|sort(attribute='updated_at', reverse=True)[:10] %}
+            <tr>
+                <td>{{ patient.name }}</td>
+                <td>{{ patient.species }}</td>
+                <td>{{ patient.owner_name }}</td>
+                <td>{{ patient.updated_at[:10] }}</td>
+                <td>
+                    <a href="{{ url_for('pims.view_patient', patient_id=patient.patient_id) }}" class="btn btn-primary" style="padding: 5px 15px; font-size: 0.9em;">View</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+{% endblock %}

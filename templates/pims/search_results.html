@@ -1,0 +1,60 @@
+{% extends "pims/base.html" %}
+
+{% block title %}Search Patients - Veterinary PIMS{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Search Patients</h2>
+
+    <form method="GET" action="{{ url_for('pims.search_patients') }}" style="margin-bottom: 20px;">
+        <div style="display: flex; gap: 10px;">
+            <input type="text" name="q" placeholder="Search by patient name, owner name, or patient ID"
+                   value="{{ query }}" style="flex: 1;">
+            <button type="submit" class="btn btn-primary">Search</button>
+        </div>
+    </form>
+
+    {% if query %}
+    <p style="color: #6c757d; margin-bottom: 15px;">
+        <strong>Search results for:</strong> "{{ query }}" - {{ patients|length }} patient(s) found
+    </p>
+    {% endif %}
+
+    {% if patients %}
+    <table>
+        <thead>
+            <tr>
+                <th>Patient ID</th>
+                <th>Name</th>
+                <th>Species</th>
+                <th>Breed</th>
+                <th>Owner</th>
+                <th>Contact</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for patient in patients %}
+            <tr>
+                <td><strong>{{ patient.patient_id }}</strong></td>
+                <td>{{ patient.name }}</td>
+                <td>{{ patient.species }}</td>
+                <td>{{ patient.breed }}</td>
+                <td>{{ patient.owner_name }}</td>
+                <td>{{ patient.owner_contact }}</td>
+                <td>
+                    <a href="{{ url_for('pims.view_patient', patient_id=patient.patient_id) }}"
+                       class="btn btn-primary" style="padding: 5px 15px; font-size: 0.9em;">View</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="alert alert-info">
+        <p>{% if query %}No patients found matching "{{ query }}".{% else %}No patients in the system yet.{% endif %}</p>
+        <p><a href="{{ url_for('pims.new_patient') }}">Register a new patient</a></p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

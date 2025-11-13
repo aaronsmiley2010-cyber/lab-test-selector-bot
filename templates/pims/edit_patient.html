@@ -1,0 +1,82 @@
+{% extends "pims/base.html" %}
+
+{% block title %}Edit {{ patient.name }} - Veterinary PIMS{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 20px;">
+    <a href="{{ url_for('pims.view_patient', patient_id=patient.patient_id) }}" class="btn btn-secondary">← Back to Patient</a>
+</div>
+
+<div class="card">
+    <h2>Edit Patient: {{ patient.name }}</h2>
+
+    <form method="POST" action="{{ url_for('pims.edit_patient', patient_id=patient.patient_id) }}">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+                <h3 style="color: #667eea; margin-bottom: 15px;">Patient Information</h3>
+
+                <div class="form-group">
+                    <label for="name">Patient Name *</label>
+                    <input type="text" id="name" name="name" value="{{ patient.name }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Species</label>
+                    <input type="text" value="{{ patient.species }}" disabled>
+                    <small style="color: #6c757d;">Species cannot be changed</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="breed">Breed *</label>
+                    <input type="text" id="breed" name="breed" value="{{ patient.breed }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Gender</label>
+                    <input type="text" value="{{ patient.gender }}" disabled>
+                    <small style="color: #6c757d;">Gender cannot be changed</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Date of Birth</label>
+                    <input type="text" value="{{ patient.date_of_birth }}" disabled>
+                    <small style="color: #6c757d;">Date of birth cannot be changed</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="weight">Weight (lbs) *</label>
+                    <input type="number" step="0.1" id="weight" name="weight" value="{{ patient.weight }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="microchip_id">Microchip ID</label>
+                    <input type="text" id="microchip_id" name="microchip_id" value="{{ patient.microchip_id or '' }}">
+                </div>
+            </div>
+
+            <div>
+                <h3 style="color: #667eea; margin-bottom: 15px;">Owner Information</h3>
+
+                <div class="form-group">
+                    <label for="owner_name">Owner Name *</label>
+                    <input type="text" id="owner_name" name="owner_name" value="{{ patient.owner_name }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="owner_contact">Owner Contact *</label>
+                    <input type="text" id="owner_contact" name="owner_contact" value="{{ patient.owner_contact }}" required>
+                </div>
+
+                <div class="alert alert-info" style="margin-top: 20px;">
+                    <p><strong>Note:</strong> Some fields like species, gender, and date of birth cannot be edited for data integrity. If these need to be corrected, please create a new patient record.</p>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 30px; display: flex; gap: 10px;">
+            <button type="submit" class="btn btn-success">Save Changes</button>
+            <a href="{{ url_for('pims.view_patient', patient_id=patient.patient_id) }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
