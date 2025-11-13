@@ -1,0 +1,13 @@
+#!/bin/bash
+echo "To check your Heroku logs, run one of these commands:"
+echo ""
+echo "If you have Heroku CLI installed:"
+echo "  heroku logs --tail -a my-veterinary-pims"
+echo ""
+echo "Or visit your Heroku dashboard:"
+echo "  https://dashboard.heroku.com/apps/my-veterinary-pims/logs"
+echo ""
+echo "Look for any error messages, especially:"
+echo "  - ImportError"
+echo "  - ModuleNotFoundError"
+echo "  - Failed to import"
