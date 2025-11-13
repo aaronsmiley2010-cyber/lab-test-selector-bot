@@ -1,0 +1,27 @@
+{
+  "name": "Veterinary PIMS with AI",
+  "description": "A comprehensive veterinary Practice Information Management System with AI-powered features",
+  "repository": "https://github.com/aaronsmiley2010-cyber/lab-test-selector-bot",
+  "keywords": ["python", "flask", "veterinary", "ai", "healthcare", "pims"],
+  "env": {
+    "SLACK_BOT_TOKEN": {
+      "description": "Slack bot token (optional - PIMS works without it)",
+      "required": false
+    },
+    "SLACK_SIGNING_SECRET": {
+      "description": "Slack signing secret (optional - PIMS works without it)",
+      "required": false
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "eco"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ]
+}
