@@ -25,14 +25,25 @@ def load_tests(csv_path: str) -> pd.DataFrame:
     df["Profit Margin"] = df["Profit"] / df["Retail Price"]
     return df
 
-# Instantiate Slack Bolt app
-bolt_app = App(
-    token=os.environ.get("SLACK_BOT_TOKEN"),
-    signing_secret=os.environ.get("SLACK_SIGNING_SECRET"),
-)
+# Instantiate Slack Bolt app (optional - PIMS works without it)
+slack_enabled = False
+try:
+    if os.environ.get("SLACK_BOT_TOKEN") and os.environ.get("SLACK_SIGNING_SECRET"):
+        bolt_app = App(
+            token=os.environ.get("SLACK_BOT_TOKEN"),
+            signing_secret=os.environ.get("SLACK_SIGNING_SECRET"),
+        )
+        slack_enabled = True
+except Exception as e:
+    print(f"Slack integration disabled: {e}")
+    bolt_app = None
 
 # Load your test data; ensure CSV is present in repo
-TEST_DF = load_tests("Idexx Prices 2025 - Sheet1 (4).csv")
+try:
+    TEST_DF = load_tests("Idexx Prices 2025 - Sheet1 (4).csv")
+except FileNotFoundError:
+    print("CSV file not found - Slack test selector disabled")
+    TEST_DF = None
 
 def recommend_tests(query: str, max_results: int = 5) -> pd.DataFrame:
     """
@@ -52,49 +63,52 @@ def recommend_tests(query: str, max_results: int = 5) -> pd.DataFrame:
     ).head(max_results)
     return results
 
-@bolt_app.command("/choose_test")
-def handle_choose_test(ack, respond, command):
-    """Handle the /choose_test slash command."""
-    ack()  # acknowledge the command immediately
-    query = command.get("text", "").strip()
-    if not query:
-        respond("Please provide a search term, e.g. `/choose_test heartworm`.")
-        return
-    results = recommend_tests(query)
-    if results.empty:
-        respond(f"No tests found matching `{query}`. Try different keywords.")
-        return
+if slack_enabled and bolt_app:
+    @bolt_app.command("/choose_test")
+    def handle_choose_test(ack, respond, command):
+        """Handle the /choose_test slash command."""
+        ack()  # acknowledge the command immediately
+        query = command.get("text", "").strip()
+        if not query:
+            respond("Please provide a search term, e.g. `/choose_test heartworm`.")
+            return
+        results = recommend_tests(query)
+        if results.empty:
+            respond(f"No tests found matching `{query}`. Try different keywords.")
+            return
 
-    # Format response
-    blocks = []
-    for _, row in results.iterrows():
-        blocks.append(
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"*{row['Name']}* (Code: `{row['Code']}`)\n"
-                            f"> Category: {row['Category']}\n"
-                            f"> Price: ${row['Retail Price']:.2f} | Profit: ${row['Profit']:.2f} "
-                            f"({row['Profit Margin']:.1%})\n"
-                            f"> {row['Description'][:200]}..."
+        # Format response
+        blocks = []
+        for _, row in results.iterrows():
+            blocks.append(
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"*{row['Name']}* (Code: `{row['Code']}`)\n"
+                                f"> Category: {row['Category']}\n"
+                                f"> Price: ${row['Retail Price']:.2f} | Profit: ${row['Profit']:.2f} "
+                                f"({row['Profit Margin']:.1%})\n"
+                                f"> {row['Description'][:200]}..."
+                    }
                 }
-            }
-        )
-        blocks.append({"type": "divider"})
-    respond(blocks=blocks)
+            )
+            blocks.append({"type": "divider"})
+        respond(blocks=blocks)
 
 # Set up Flask server
 flask_app = Flask(__name__)
-handler = SlackRequestHandler(bolt_app)
 
 # Register Veterinary PIMS Blueprint
 flask_app.register_blueprint(pims_bp)
 
-# Slack slash commands and events will POST to /slack/events
-@flask_app.route("/slack/events", methods=["POST"])
-def slack_events():
-    return handler.handle(request)
+# Slack slash commands and events will POST to /slack/events (only if Slack enabled)
+if slack_enabled and bolt_app:
+    handler = SlackRequestHandler(bolt_app)
+
+    @flask_app.route("/slack/events", methods=["POST"])
+    def slack_events():
+        return handler.handle(request)
 
 @flask_app.route("/", methods=["GET"])
 def index():
